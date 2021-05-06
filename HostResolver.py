@@ -1,4 +1,4 @@
-import argparse, socket, csv
+import argparse, socket, csv, concurrent.futures
 
 parser = argparse.ArgumentParser(description="Example: \n\npython3 HostResolver.py -r hostnames -d bankcorp.com -i .\\ip_addresses.txt -o .\\results.csv")
 parser.add_argument("-r", metavar="--resolver", help="The -r argument must be set to \"ips\" to resolve IPs from hostnames, or set to \"hostnames\" to resolve hostnames from IPs.", required=True)
@@ -12,51 +12,58 @@ in_file = args.i
 domain = args.d
 out_file = args.o
 
-def get_ip(host):
+def get_ip(host,host_list):
     res = {
         "IP Address": "",
         "Hostname": host
     }
+    current = host_list.index(host) + 1
+    total = len(host_list)
     try:
-        print(f"Looking up IP for {host}.")
+        print(f"Looking up IP for {host}. [{current}/{total}]")
         res["IP Address"] = socket.gethostbyname(host)
         return res
     except:
-       print("Unable to resolve IP.\n\n")
        return None 
 
-def get_hostname(ip):
+def get_hostname(ip,host_list):
     res = {
         "IP Address": ip,
         "Hostname": ""
     }
+    current = host_list.index(ip) + 1
+    total = len(host_list)
     try:
-        print(f"Looking up hostname for {ip}")
+        print(f"Looking up hostname for {ip}. [{current}/{total}]")
         host = socket.gethostbyaddr(ip)
         res["Hostname"] = host[0]
         return res
     except:
-       print("Unable to get hostname.\n\n")
        return None
 
-if (resolver == "ips") or (resolver == "hostnames"):  
+if (resolver == "ips") or (resolver == "hostnames"):
+    host_list = []
+    
     with open(out_file, "w", newline="") as csvfile:
-            fieldnames = ["IP Address", "Hostname"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)   
-            writer.writeheader() 
-
-            with open(in_file, "r") as hosts:
-                for h in hosts:
-                    if domain != None:
-                        h = h.strip() + ".".strip() + domain.strip()
-                    else:
-                        h = h.strip() 
-                    if resolver == "ips":
-                        res = get_ip(h)
-                    else:
-                        res = get_hostname(h)
-                    if res != None:
-                        print(f"{res['IP Address']} :: {res['Hostname']}\n\n")
-                        writer.writerow(res)
+        fieldnames = ["IP Address", "Hostname"]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)   
+        writer.writeheader() 
+        
+        with open(in_file, "r") as hosts:
+            for h in hosts:
+                if domain != None:
+                    h = h.strip() + ".".strip() + domain.strip()
+                else:
+                    h = h.strip()
+                host_list.append(h)
+            
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            if resolver == "ips":
+                results = [executor.submit(get_ip, h,host_list) for h in host_list]
+            else:
+                results = [executor.submit(get_hostname, h,host_list) for h in host_list]
+            for f in concurrent.futures.as_completed(results):
+                if f.result() != None:
+                    writer.writerow(f.result())
 else:
     print("The -r argument must be set to \"ips\" to resolve IPs from hostnames, or set to \"hostnames\" to resolve hostnames from IPs.")
