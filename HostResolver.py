@@ -1,4 +1,5 @@
 import argparse, socket, csv
+
 parser = argparse.ArgumentParser(description="Example: \n\npython3 HostResolver.py -r hostnames -d bankcorp.com -i .\\ip_addresses.txt -o .\\results.csv")
 parser.add_argument("-r", metavar="--resolver", help="The -r argument must be set to \"ips\" to resolve IPs from hostnames, or set to \"hostnames\" to resolve hostnames from IPs.", required=True)
 parser.add_argument("-d", metavar="--domain", help="A domain name to append to the hostnames when resolving IPs.")
@@ -17,9 +18,11 @@ def get_ip(host):
         "Hostname": host
     }
     try:
+        print(f"Looking up IP for {host}.")
         res["IP Address"] = socket.gethostbyname(host)
         return res
     except:
+       print("Unable to resolve IP.\n\n")
        return None 
 
 def get_hostname(ip):
@@ -28,10 +31,12 @@ def get_hostname(ip):
         "Hostname": ""
     }
     try:
+        print(f"Looking up hostname for {ip}")
         host = socket.gethostbyaddr(ip)
         res["Hostname"] = host[0]
         return res
     except:
+       print("Unable to get hostname.\n\n")
        return None
 
 if (resolver == "ips") or (resolver == "hostnames"):  
@@ -51,7 +56,7 @@ if (resolver == "ips") or (resolver == "hostnames"):
                     else:
                         res = get_hostname(h)
                     if res != None:
-                        print(f"{res['IP Address']} :: {res['Hostname']}")
+                        print(f"{res['IP Address']} :: {res['Hostname']}\n\n")
                         writer.writerow(res)
 else:
     print("The -r argument must be set to \"ips\" to resolve IPs from hostnames, or set to \"hostnames\" to resolve hostnames from IPs.")
